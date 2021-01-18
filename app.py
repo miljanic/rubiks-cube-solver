@@ -98,29 +98,33 @@ class CubeState:
         return len(squares) == self.squares_count
 
 
+def filter_intersecting_squares(squares: List[Square]) -> List[Square]:
+    for_drawing = []
+    for index, s in enumerate(squares):
+        if is_last_from_intersection(s, squares[index + 1:]):
+            for_drawing.append(s)
+    return for_drawing
+
+
 def main(video: Union[str, int], cube_dimensions: int):
     cap = cv2.VideoCapture(video)
     state = CubeState(cube_dimensions)
 
     while True:
+        # get single frame from video
         ret, image = cap.read()
-
         img = cv2.GaussianBlur(image, (5, 5), 0)
 
+        # extract squares from image
         squares = [
             Square.normalize(s[0][0], s[0][1], s[2][0], s[2][1])
             for s in get_squares_from_frame(img)
         ]
+        for_drawing = filter_intersecting_squares(squares)
 
-        for_drawing = []
-
-        for index, s in enumerate(squares):
-            if is_last_from_intersection(s, squares[index + 1:]):
-                for_drawing.append(s)
-
+        # draw
         thickness = 4 if state.all_squares_found(for_drawing) else 1
         color = (0, 266, 0) if state.all_squares_found(for_drawing) else (0, 0, 255)
-
         for c in for_drawing:
             cv2.rectangle(
                 image,
