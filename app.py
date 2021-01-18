@@ -122,6 +122,9 @@ def main(video: Union[str, int], cube_dimensions: int):
         ]
         for_drawing = filter_intersecting_squares(squares)
 
+        # todo: calculate colors and modify state according to it
+
+
         # draw
         thickness = 4 if state.all_squares_found(for_drawing) else 1
         color = (0, 266, 0) if state.all_squares_found(for_drawing) else (0, 0, 255)
@@ -135,7 +138,11 @@ def main(video: Union[str, int], cube_dimensions: int):
             )
 
         cv2.imshow("Image", image)
-        cv2.waitKey()
+        # cv2.waitKey()
+        k = cv2.waitKey(1) & 0xFF
+        # press escape to exit
+        if k == 27:
+            break
 
     # When everything done, release the capture
     cap.release()
