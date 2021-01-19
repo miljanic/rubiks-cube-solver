@@ -6,7 +6,7 @@
 #
 # Distributed under terms of the BSD 3-Clause license.
 from dataclasses import dataclass
-from typing import NamedTuple, List, Union
+from typing import List, Union
 
 import numpy as np
 import cv2
@@ -18,9 +18,34 @@ def angle_cos(p0, p1, p2):
     return abs(np.dot(d1, d2) / np.sqrt(np.dot(d1, d1) * np.dot(d2, d2)))
 
 
-class Point(NamedTuple):
-    x: float
-    y: float
+hsv_colors = {
+    "red": [
+        (np.array([0, 70, 70]),
+         np.array([3, 255, 210])),
+        (np.array([175, 70, 70]),
+         np.array([180, 255, 210]))
+    ],
+    "yellow": [
+        (np.array([18, 70, 50]),
+         np.array([48, 255, 255]))
+    ],
+    "blue": [
+        (np.array([92, 70, 30]),
+         np.array([131, 255, 200]))
+    ],
+    "green": [
+        (np.array([60, 70, 24]),
+         np.array([91, 255, 130]))
+    ],
+    "white": [
+        (np.array([0, 0, 100]),
+         np.array([255, 53, 255]))
+    ],
+    "orange": [
+        (np.array([4, 70, 50]),
+         np.array([17, 255, 255]))
+    ],
+}
 
 
 @dataclass
@@ -118,16 +143,38 @@ def main(video: Union[str, int], cube_dimensions: int):
         # extract squares from image
         squares = [
             Square.normalize(s[0][0], s[0][1], s[2][0], s[2][1])
-            for s in get_squares_from_frame(img)
+            for s in get_squares_from_frame(image)
         ]
         for_drawing = filter_intersecting_squares(squares)
-
-        # todo: calculate colors and modify state according to it
-
 
         # draw
         thickness = 4 if state.all_squares_found(for_drawing) else 1
         color = (0, 266, 0) if state.all_squares_found(for_drawing) else (0, 0, 255)
+
+        def get_square_color(full_image, square):
+            avg_b = 0
+            avg_g = 0
+            avg_r = 0
+            pixel_count = (square.right - square.left) * (square.top - square.bottom)
+            for x in range(int(c.left), int(c.right), 1):
+                for y in range(int(c.bottom), int(c.top), 1):
+                    pixel_color = full_image[y, x]
+                    avg_b += pixel_color[0]
+                    avg_g += pixel_color[1]
+                    avg_r += pixel_color[2]
+            avg_color = np.uint8([[[avg_b / pixel_count, avg_g / pixel_count, avg_r / pixel_count]]])
+            # bgr to hsv
+            avg_hsv = cv2.cvtColor(avg_color, cv2.COLOR_BGR2HSV)
+
+            search = avg_hsv[0][0]
+            for col_name, vals in hsv_colors.items():
+                for low, high in vals:
+                    if low[0] <= search[0] <= high[0] and low[1] <= search[1] <= high[1] and low[2] <= search[2] <= \
+                            high[2]:
+                        return col_name
+            return None
+
+        found_colors = []
         for c in for_drawing:
             cv2.rectangle(
                 image,
@@ -136,9 +183,14 @@ def main(video: Union[str, int], cube_dimensions: int):
                 color=color,
                 thickness=thickness
             )
+            if len(for_drawing) == state.squares_count:
+                found_colors.append(get_square_color(img, c))
+                found_colors = list(filter(lambda x: x, found_colors))
+
+        if len(for_drawing) == state.squares_count == len(found_colors):
+            print('TODO: steps')
 
         cv2.imshow("Image", image)
-        # cv2.waitKey()
         k = cv2.waitKey(1) & 0xFF
         # press escape to exit
         if k == 27:
